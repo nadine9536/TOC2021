@@ -10,25 +10,65 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from fsm import TocMachine
 from utils import send_text_message
 
+import json
+
+import requests
+
 load_dotenv()
 
 
 machine = TocMachine(
-    states=["user", "state1", "state2"],
+    states=["user", "todayweather", "city", "picture", "air", "weekweather", "weekcity", "graph", "state"],
     transitions=[
         {
             "trigger": "advance",
             "source": "user",
-            "dest": "state1",
-            "conditions": "is_going_to_state1",
+            "dest": "state",
+            "conditions": "is_going_to_state",
+        },
+        {
+            "trigger": "advance",
+            "source": "state",
+            "dest": "todayweather",
+            "conditions": "is_going_to_todayweather",
+        },
+        {
+            "trigger": "advance",
+            "source": "todayweather",
+            "dest": "city",
+            "conditions": "is_going_to_city",
+        },
+        {
+            "trigger": "advance",
+            "source": "state",
+            "dest": "picture",
+            "conditions": "is_going_to_picture",
+        },
+        {
+            "trigger": "advance",
+            "source": "state",
+            "dest": "air",
+            "conditions": "is_going_to_air",
+        },
+        {
+            "trigger": "advance",
+            "source": "state",
+            "dest": "weekweather",
+            "conditions": "is_going_to_weekweather",
+        },
+        {
+            "trigger": "advance",
+            "source": "weekweather",
+            "dest": "weekcity",
+            "conditions": "is_going_to_weekcity",
         },
         {
             "trigger": "advance",
             "source": "user",
-            "dest": "state2",
-            "conditions": "is_going_to_state2",
+            "dest": "graph",
+            "conditions": "is_going_to_graph",
         },
-        {"trigger": "go_back", "source": ["state1", "state2"], "dest": "user"},
+        {"trigger": "go_back", "source": ["todayweather", "city", "picture", "air", "weekweather","weekcity", "graph"], "dest": "user"},
     ],
     initial="user",
     auto_transitions=False,
@@ -91,7 +131,7 @@ def webhook_handler():
         events = parser.parse(body, signature)
     except InvalidSignatureError:
         abort(400)
-
+    
     # if event is MessageEvent and message is TextMessage, then echo text
     for event in events:
         if not isinstance(event, MessageEvent):
@@ -104,15 +144,27 @@ def webhook_handler():
         print(f"REQUEST BODY: \n{body}")
         response = machine.advance(event)
         if response == False:
-            send_text_message(event.reply_token, "Not Entering any State")
+            send_text_message(event.reply_token, "請輸入hi或graph")
+            machine.go_back()
 
     return "OK"
 
 
 @app.route("/show-fsm", methods=["GET"])
 def show_fsm():
-    machine.get_graph().draw("fsm.png", prog="dot", format="png")
-    return send_file("fsm.png", mimetype="image/png")
+    try:
+        machine.get_graph().draw("fsm.png", prog="dot", format="png")
+        return send_file("fsm.png", mimetype="image/png")
+    except Exception as ex:
+        # sys.exc_info()[0] 就是用來取出except的錯誤訊息的方法
+        print(ex)
+
+@app.route("/show-week", methods=["GET"])
+def show_week():
+    # city = "嘉義市"
+    # city = request.args.get('city')
+    # print(city)
+    return send_file("week.png", mimetype="image/png")
 
 
 if __name__ == "__main__":
